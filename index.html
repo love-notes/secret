@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Secret Letter</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#ffeef5; --bg2:#fde4e2; --accent:#ff7f9c; --card:#fffaf9; --text:#3b2f2f;
+  }
+  html,body{
+    height:100%;
+    margin:0;
+    padding:0;
+    font-family: "Roboto Mono", monospace;
+    background:linear-gradient(135deg,var(--bg1),var(--bg2));
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .card{
+    width: min(90vw, 420px); max-height: 86vh;
+    background: var(--card);
+    border-radius:16px;
+    box-shadow: 0 12px 30px rgba(50,30,30,0.12);
+    padding:18px; overflow:hidden;
+    display:flex; flex-direction:column; gap:12px;
+    border: 1px solid rgba(255,127,156,0.18);
+  }
+  .top{display:flex;gap:12px;align-items:center;justify-content:space-between;}
+  h1{font-size:1.05rem;margin:0;color:var(--text)}
+  .hint{font-size:0.86rem;color:rgba(59,47,47,0.7)}
+  #controls{display:flex;gap:8px;align-items:center}
+  input[type="text"]{
+    padding:10px 12px;border-radius:10px;border:2px solid rgba(255,127,156,0.28);
+    outline:none;font-size:0.95rem;width:100%;box-sizing:border-box;
+  }
+  button{
+    background:var(--accent);color:white;border:none;padding:8px 12px;border-radius:10px;
+    cursor:pointer;font-family:inherit;font-size:0.95rem;
+  }
+  button.secondary{background:transparent;color:var(--accent);border:1px solid rgba(255,127,156,0.25)}
+  button:disabled{opacity:0.6;cursor:not-allowed}
+  #message{font-size:0.9rem;color:rgba(59,47,47,0.85)}
+  #letterBox{
+    background:transparent;border-radius:10px;padding:12px;border:1px dashed rgba(120,90,90,0.06);
+    overflow:auto;flex:1 1 auto;min-height:160px;white-space:pre-wrap;color:var(--text);font-size:1rem;
+  }
+  #letterInner{
+    line-height:1.6;
+    font-family: "Roboto Mono", monospace;
+    color: var(--text);
+    font-size: 1rem;
+  }
+  .small{font-size:0.85rem;color:rgba(59,47,47,0.7)}
+  .hidden{display:none}
+  .success {color: #5a8b6f}
+  .error {color: #a7475a}
+  .response-buttons{display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+  .resp-btn{
+    background: #ffdfe6; color: #4a2b2b; border-radius: 12px; padding: 10px 16px; border: 1px solid rgba(255,127,156,0.18);
+    cursor:pointer; font-family:"Roboto Mono", monospace; font-weight:700;
+  }
+  .resp-btn:hover{ background:#ffc6d6; color:#2f1f1f; }
+</style>
+</head>
+<body>
+<div class="card" role="main" aria-labelledby="title">
+  <div class="top">
+    <div>
+      <h1 id="title">💌 secret letter</h1>
+      <div class="hint">What’s the name of my future love?</div>
+    </div>
+    <div id="controls" class="small">Music: <span id="ms">off</span></div>
+  </div>
+  <div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <input id="password" type="text" autocomplete="off" placeholder="hii, type the name..." aria-label="secret answer">
+      <button id="submitBtn">open letter</button>
+    </div>
+    <div id="message" aria-live="polite"></div>
+  </div>
+  <div id="letterBox" class="hidden" tabindex="0" aria-hidden="true">
+    <div id="letterInner" aria-live="polite"></div>
+  </div>
+  <div id="responseArea" class="hidden">
+    <div class="response-buttons hidden" id="responseButtons" aria-hidden="true">
+      <button id="yesBtn" class="resp-btn">yesss, i will!</button>
+      <button id="noBtn" class="resp-btn">noo, you're mine!</button>
+    </div>
+    <div class="response hidden" id="afterResponse"></div>
+    <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:8px;">
+      <button id="playMusicBtn" class="secondary hidden">▶ Play music</button>
+      <button id="pauseMusicBtn" class="secondary hidden">⏸ Pause</button>
+      <button id="openPlaylistBtn" class="hidden">Take me to our playlist</button>
+    </div>
+  </div>
+</div>
+<audio id="bgMusic" loop preload="auto">
+  <source src="nothing.mp3" type="audio/mpeg">
+  Your browser does not support audio.
+</audio>
+<script>
+(function(){
+  const acceptedAnswers = new Set(["Julius Halsthon"]);
+  const spotifyUrl = "https://open.spotify.com/playlist/7HG3VX6iU8Zk57D4nowUFq";
+  const letterContent =
+`I want to be completely honest about what I’ve been feeling. I’m truly grateful to have met you and to be part of your life. Since we started getting closer, my feelings have grown naturally, little by little, until they became something real and meaningful to me.
+
+Today, I don’t want to keep it to myself anymore. I care about you deeply, and my feelings for you are serious. I would like to take this relationship to a more mature and meaningful level. 
+
+But I also respect your feelings and your decision. Whatever your answer may be, I will accept it sincerely.`;
+
+  const pw = document.getElementById('password');
+  const submitBtn = document.getElementById('submitBtn');
+  const msg = document.getElementById('message');
+  const letterBox = document.getElementById('letterBox');
+  const letterInner = document.getElementById('letterInner');
+  const bgMusic = document.getElementById('bgMusic');
+  const playMusicBtn = document.getElementById('playMusicBtn');
+  const pauseMusicBtn = document.getElementById('pauseMusicBtn');
+  const openPlaylistBtn = document.getElementById('openPlaylistBtn');
+  const ms = document.getElementById('ms');
+  const responseArea = document.getElementById('responseArea');
+  const responseButtons = document.getElementById('responseButtons');
+  const yesBtn = document.getElementById('yesBtn');
+  const noBtn = document.getElementById('noBtn');
+  const afterResponse = document.getElementById('afterResponse');
+
+  let unlocked=false;
+
+  function norm(s){ return (s||'').toString().trim().toLowerCase(); }
+  function flash(text,cls){
+    msg.textContent = text;
+    msg.className = cls === 'error' ? 'error' : (cls === 'success' ? 'success' : '');
+    setTimeout(()=>{ if(!unlocked) msg.textContent=''; }, 3000);
+  }
+
+  // Enter to submit
+  pw.addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); submitBtn.click(); }});
+  submitBtn.addEventListener('click', function(){
+    if(unlocked) return;
+    const v = norm(pw.value);
+    if(!v){ flash("Please type the name.", "error"); pw.focus(); return; }
+    if(acceptedAnswers.has(v)){
+      unlocked = true;
+      flash("you’re so smartt! opening your letter...", "success");
+      pw.disabled = true; submitBtn.disabled = true;
+      openLetter();
+    } else {
+      flash("oopsiee, try again :(", "error"); pw.focus();
+    }
+  });
+
+  function openLetter(){
+    letterBox.classList.remove('hidden');
+    letterBox.setAttribute('aria-hidden','false');
+    letterInner.innerHTML = '';
+    tryPlayAndFade();
+    startTypewriter(letterContent, letterInner, 100, ()=> {
+      responseArea.classList.remove('hidden');
+      responseButtons.classList.remove('hidden');
+      setTimeout(()=> {
+        playMusicBtn.classList.remove('hidden');
+        pauseMusicBtn.classList.remove('hidden');
+      }, 300);
+    });
+    setTimeout(()=> letterBox.focus(), 200);
+  }
+
+  function startTypewriter(text, container, speed=100, callback){
+    let i=0;
+    function step(){
+      if(i>=text.length){ if(typeof callback==='function') callback(); return; }
+      const ch = text.charAt(i++);
+      if(ch === '\n'){
+        container.innerHTML += '<br>';
+        if(text.charAt(i) === '\n'){ i++; container.innerHTML += '<br>'; }
+        setTimeout(step, speed*6);
+      } else {
+        const safe = ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch;
+        container.innerHTML += safe;
+        container.scrollTop = container.scrollHeight;
+        setTimeout(step, speed);
+      }
+    }
+    step();
+  }
+
+  function tryPlayAndFade(){
+    bgMusic.volume = 0;
+    const target = 0.28;
+    bgMusic.play().then(()=>{
+      ms.textContent = 'on';
+      fadeVolume(bgMusic, target, 1500);
+    }).catch(()=>{
+      ms.textContent = 'off';
+      playMusicBtn.classList.remove('hidden');
+      flash("If music doesn't start automatically, press Play music.", "");
+    });
+  }
+
+  function fadeVolume(audioElm, target, duration){
+    const steps = Math.max(6, Math.floor(duration / 60));
+    const step = (target - audioElm.volume) / steps;
+    let count = 0;
+    const iv = setInterval(()=>{
+      audioElm.volume = Math.min(target, audioElm.volume + step);
+      count++;
+      if(count >= steps || audioElm.volume >= target - 0.001){ clearInterval(iv); audioElm.volume = target; }
+    }, duration/steps);
+  }
+
+  playMusicBtn.addEventListener('click', ()=>{
+    bgMusic.play().then(()=>{ ms.textContent='on'; playMusicBtn.classList.add('hidden'); fadeVolume(bgMusic,0.28,1400);})
+    .catch(()=> flash("Unable to play audio. Your browser may restrict it.","error"));
+  });
+
+  pauseMusicBtn.addEventListener('click', ()=>{
+    if(bgMusic.paused){ bgMusic.play().then(()=> { ms.textContent='on'; }).catch(()=> flash("Can't play audio.","error")); }
+    else { bgMusic.pause(); ms.textContent='off'; }
+  });
+
+  bgMusic.addEventListener('error', ()=>{
+    playMusicBtn.classList.remove('hidden');
+    ms.textContent = 'off';
+    flash("Music couldn't be loaded from audio.mp3. Make sure the file is in the same folder as this HTML.", "error");
+  });
+
+  yesBtn.addEventListener('click', ()=> respondPositive("yeayyy! i knew it. i can't wait to make more memories with you."));
+  noBtn.addEventListener('click', ()=> respondPositive("hehehe, good, because I'm yours too!"));
+
+  function respondPositive(message){
+    responseButtons.classList.add('hidden');
+    afterResponse.style.display = 'block';
+    afterResponse.textContent = message;
+    openPlaylistBtn.classList.remove('hidden');
+    openPlaylistBtn.addEventListener('click', ()=> { window.open(spotifyUrl,'_blank'); }, { once: true });
+  }
+
+  playMusicBtn.classList.add('hidden');
+  pauseMusicBtn.classList.add('hidden');
+  openPlaylistBtn.classList.add('hidden');
+})();
+</script>
+</body>
+</html>
